@@ -37,6 +37,12 @@ data Code = Code [Actions]
     deriving (Show, Eq)
 
 data Actions = Action Assignment
+    deriving (Show, Eq)
 
 data Assignment = Assignment Name Expr
+    deriving (Show, Eq)
+
+type Name = String
+
+data Expr = Const Int | BinOperation Expr Expr | UnOperation Expr
 
