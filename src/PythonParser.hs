@@ -1,4 +1,6 @@
-import Control.Applicative ((<|>))
+import           Control.Applicative ((<|>))
+import           Text.ParserCombinators.ReadP
+import           Data.Char
 
 -- Code = List Actions
 --
@@ -10,7 +12,7 @@ import Control.Applicative ((<|>))
 -- Assign = '='
 -- Name = String starting with a letter
 --
--- Expr = Const | Expr BinOperation Expr | UnOperation Expr
+-- Expr = Name | Const | Expr BinOperation Expr | UnOperation Expr
 --
 -- BinOperation = Add | Substract 
 --          | Mult | Divide 
@@ -44,5 +46,30 @@ data Assignment = Assignment Name Expr
 
 type Name = String
 
-data Expr = Const Int | BinOperation Expr Expr | UnOperation Expr
+data Expr = Variable String | Const Int 
+          | BinOperation Expr Expr | UnOperation Expr
+
+letter :: ReadP Char
+letter :: = satisfy isAlpha
+
+digit :: ReadP Char
+digit = satisfy isDigit
+
+number :: ReadP Int
+number = many1 digit
+
+exprParser :: ReadP Expr
+exprParser = (fmap Variable nameParser) <|> constParser <|> binOperationParser 
+
+constParser :: ReadP Expr
+constParser = number
+
+nameParser :: ReadP String
+nameParser = do
+   firstLetter <- letter 
+   everythingElse <- many1 $ satisfy isAlphaNum
+   return $ firstLetter:everythingElse
+    
+binOperation :: ReadP Expr
+binOperation = do
 
