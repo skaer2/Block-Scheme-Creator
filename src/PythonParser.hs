@@ -47,7 +47,9 @@ data Assignment = Assignment Name Expr
 type Name = String
 
 data Expr = Variable String | Const Int 
-          | BinOperation Expr Expr | UnOperation Expr
+          | BinOperation Operator Expr Expr | UnOperation Expr
+
+data Operation = Add | Minus
 
 letter :: ReadP Char
 letter :: = satisfy isAlpha
@@ -66,10 +68,32 @@ constParser = number
 
 nameParser :: ReadP String
 nameParser = do
-   firstLetter <- letter 
-   everythingElse <- many1 $ satisfy isAlphaNum
-   return $ firstLetter:everythingElse
+    firstLetter <- letter 
+    everythingElse <- many $ satisfy isAlphaNum
+    return $ firstLetter:everythingElse
     
+operatorParser :: ReadP Operation 
+operatorParser = choice operatorParsers
+    where 
+        operatorParsers = [addParser, minusParser]
+
+addParser :: ReadP Operation
+addParser = do 
+    char '+'
+    return Add 
+
+minusParser :: ReadP Operation
+minusParser = do
+    char '-'
+    return Minus
+
 binOperation :: ReadP Expr
 binOperation = do
-
+    char '('
+    skipSpaces
+    leftOperand <- exprParser
+    operator <- operatorParser
+    rightOperand <- exprParser
+    skipSpaces
+    char ')'
+    return $ BinOperation operator leftOperand rightOperand
