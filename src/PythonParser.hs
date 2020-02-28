@@ -1,3 +1,5 @@
+module PythonParser where
+
 import           Control.Applicative ((<|>))
 import           Text.ParserCombinators.ReadP
 import           Data.Char
@@ -48,23 +50,28 @@ type Name = String
 
 data Expr = Variable String | Const Int 
           | BinOperation Operator Expr Expr | UnOperation Expr
+    deriving (Show, Eq)
 
-data Operation = Add | Minus
+data Operator = Add | Minus | Product
+    deriving (Show, Eq)
+
+showResult :: [(a, String)] -> [(a, String)]
+showResult = filter (\(x, leftovers) -> if leftovers == "" then True else False)
 
 letter :: ReadP Char
-letter :: = satisfy isAlpha
+letter = satisfy isAlpha
 
 digit :: ReadP Char
 digit = satisfy isDigit
 
 number :: ReadP Int
-number = many1 digit
+number = fmap (read) $ many1 digit
 
 exprParser :: ReadP Expr
-exprParser = (fmap Variable nameParser) <|> constParser <|> binOperationParser 
+exprParser = {--(fmap Variable nameParser) <|>--} constParser <|> binOperationParser 
 
 constParser :: ReadP Expr
-constParser = number
+constParser = fmap Const number
 
 nameParser :: ReadP String
 nameParser = do
@@ -72,28 +79,35 @@ nameParser = do
     everythingElse <- many $ satisfy isAlphaNum
     return $ firstLetter:everythingElse
     
-operatorParser :: ReadP Operation 
+operatorParser :: ReadP Operator 
 operatorParser = choice operatorParsers
     where 
-        operatorParsers = [addParser, minusParser]
+        operatorParsers = [addParser, minusParser, productParser]
 
-addParser :: ReadP Operation
+addParser :: ReadP Operator
 addParser = do 
     char '+'
     return Add 
 
-minusParser :: ReadP Operation
+minusParser :: ReadP Operator
 minusParser = do
     char '-'
     return Minus
 
-binOperation :: ReadP Expr
-binOperation = do
-    char '('
-    skipSpaces
-    leftOperand <- exprParser
+productParser :: ReadP Operator
+productParser = do
+    char '*'
+    return Product
+
+binOperationParser :: ReadP Expr
+binOperationParser = do
+    --char '('
+    --skipSpaces
+    leftOperand <- constParser
+    --skipSpaces
     operator <- operatorParser
+    --skipSpaces
     rightOperand <- exprParser
-    skipSpaces
-    char ')'
+    --skipSpaces
+    --char ')'
     return $ BinOperation operator leftOperand rightOperand
