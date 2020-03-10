@@ -14,22 +14,7 @@ import           Text.ParserCombinators.ReadP
 -- Assign = '='
 -- Name = String starting with a letter
 --
--- Expr = Name | Const | Expr BinOperation Expr | UnOperation Expr
---
--- BinOperation = Add | Substract
---          | Mult | Divide
---          | Div | Mod
---          | Power
---          | Equal | More | Less
---          | MoreOrEqual | LessOrEqual
---          | NotEqual
---          | Or | And
---
--- Add = '+'
--- Substract = '-'
---
--- UnOperation = Not          --Also Operators on bits
---
+-- Expr = String
 --
 -- Function = Def Name '(' Arguments ')' ':'
 --            BlockBegin Code BlockEnd
@@ -37,11 +22,14 @@ import           Text.ParserCombinators.ReadP
 -- BlockEnd   = IndentOut
 --
 data Code =
-    Code [Actions]
+    Code [Action]
     deriving (Show, Eq)
 
-data Actions =
-    Action Assignment
+data Action 
+    = Assign Assignment
+    | Call CallF 
+    | Definition Function
+--  | Use Keyword
     deriving (Show, Eq)
 
 data Assignment =
@@ -50,47 +38,18 @@ data Assignment =
 
 type Name = String
 
-data Expr =
-    Expr Term [(Operator, Term)]
+type Expr = String
+
+data CallF = CallF (Maybe SourceName) FunctionName [Argument]
     deriving (Show, Eq)
 
-data Term =
-    Term Factor [(Operator, Factor)]
-    deriving (Show, Eq)
+type SourceName = String
 
-data Factor
-    = Variable String
-    | Const Int
-    | FactorExpr Expr
-    deriving (Show, Eq)
+type FunctionName = String
 
-data Operator
-    = Add
-    | Minus
-    | Product
-    deriving (Show, Eq)
+type Argument = String
 
-evaluateExpr :: Expr -> Int
-evaluateExpr (Expr term terms) =
-    foldl f (evaluateTerm term) terms
-  where
-      f acc (op, termR) = (toFunction op) acc (evaluateTerm termR) 
-
-evaluateTerm :: Term -> Int
-evaluateTerm (Term factor factors) =
-    foldl f (evaluateFactor factor) factors
-  where
-      f acc (op, factorR) = (toFunction op) acc (evaluateFactor factorR) 
-
-evaluateFactor :: Factor -> Int
-evaluateFactor (Variable s)      = 0
-evaluateFactor (Const n)         = n
-evaluateFactor (FactorExpr expr) = evaluateExpr expr
-
-toFunction :: (Num a) => Operator -> (a -> a -> a)
-toFunction Add     = (+)
-toFunction Minus   = (-)
-toFunction Product = (*)
+data Function = Function FunctionName [Argument]
 
 showResult :: [(a, String)] -> Maybe a
 showResult r = case showResults r of
@@ -114,38 +73,11 @@ digit = satisfy isDigit
 number :: ReadP Int
 number = fmap (read) $ many1 digit
 
-exprParser :: ReadP Expr
-exprParser = do
-    leftTerm <- termParser
-    terms <- many sequenceOfTerms
-    return $ Expr leftTerm terms
-  where
-    sequenceOfTerms = do
-        operator <- minusParser <|> addParser
-        rightTerm <- termParser
-        return $ (operator, rightTerm)
+isEndOfLine :: Char -> Bool
+isEndOfLine = (==) '\n'
 
-termParser :: ReadP Term
-termParser = do
-    leftFactor <- factorParser
-    factors <- many sequenceOfFactors
-    return $ Term leftFactor factors
-  where
-    sequenceOfFactors = do
-        operator <- productParser
-        rightFactor <- factorParser
-        return $ (operator, rightFactor)
-
-factorParser :: ReadP Factor
-factorParser =
-    constParser <|> do
-        char '('
-        expr <- (fmap FactorExpr exprParser) {--(fmap Variable nameParser) <|>--}
-        char ')'
-        return expr
-
-constParser :: ReadP Factor
-constParser = fmap Const number
+stringParser :: ReadP String
+stringParser = many1 $ satisfy $ not . isEndOfLine
 
 nameParser :: ReadP String
 nameParser = do
@@ -153,43 +85,38 @@ nameParser = do
     everythingElse <- many $ satisfy isAlphaNum
     return $ firstLetter : everythingElse
 
-operatorParser :: ReadP Operator
-operatorParser = choice operatorParsers
-  where
-    operatorParsers = [addParser, minusParser, productParser]
+endOfLine :: ReadP ()
+endOfLine = (satisfy isEndOfLine >> return ())<|> eof 
 
-addParser :: ReadP Operator
-addParser = do
-    char '+'
-    return Add
+codeParser :: ReadP Code
+codeParser = fmap Code $ many1 actionParser
 
-minusParser :: ReadP Operator
-minusParser = do
-    char '-'
-    return Minus
+actionParser :: ReadP Action
+actionParser = (fmap Assign assigmentParser) <|> (fmap Call callParser)
 
-productParser :: ReadP Operator
-productParser = do
-    char '*'
-    return Product
-        {--
-binOperationParser :: ReadP Expr
-binOperationParser = do
+assigmentParser :: ReadP Assignment
+assigmentParser = do
+    name <- nameParser 
+    skipSpaces
+    char '='
+    skipSpaces
+    expr <- stringParser 
+    endOfLine
+    return $ Assignment name expr
+
+callParser :: ReadP CallF
+callParser = do 
+    sourceName <- option Nothing source
+    functionName <- nameParser 
     char '('
-    leftOperand <- exprParser
-    ):_ <- many1 inBetween
+    arguments <- sepBy stringParser (skipSpaces >> char ',' >> skipSpaces)
     char ')'
-    return $ BinOperation operator leftOperand rightOperand
+    endOfLine
+    return $ CallF sourceName functionName arguments
   where
-    inBetween = do
-        operator <- operatorParser
-        rightOperand <- exprParser
-        return (operator, rightOperand)
+    source = do 
+        name <- nameParser
+        char '.'
+        return $ Just name
 
-unOperationParser :: ReadP Expr
-unOperationParser = do
-    char '('
-    operand <- exprParser
-    char ')'
-    return $ UnOperation operand
-    --}
+functionParser :: ReadP Function
