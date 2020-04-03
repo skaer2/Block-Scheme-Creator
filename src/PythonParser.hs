@@ -43,6 +43,7 @@ type Expr = String
 data IndentType 
     = Spaces
     | Tabs
+    deriving (Show, Eq)
 
 data CallF =
     CallF (Maybe SourceName) FunctionName [Argument]
@@ -117,12 +118,12 @@ endOfLine = (satisfy isEndOfLine >> return ()) <|> eof
 
 indentTabs :: ReadP ([Char], IndentType)
 indentTabs = do
-    chars <- many (char '\t') 
+    chars <- many1 (char '\t') 
     return (chars, Tabs)
 
 indentSpaces :: ReadP ([Char], IndentType)
 indentSpaces = do
-    chars <- many (char ' ') 
+    chars <- many1 (char ' ') 
     return (chars, Spaces)
 
 getIndentSizeAndType :: ReadP (Int, IndentType)
@@ -136,25 +137,23 @@ indentN n = count n . char . indentChar
         indentChar Spaces = ' '
         indentChar Tabs = '\t'
 
-altCodeParser :: Maybe Int -> ReadP Code
-altCodeParser n = do
-    (n', indType) <- codeStart n Spaces
+codeEnd :: ReadP ()
+codeEnd = skipCommentsAndSpaces <|> eof 
+
+codeParser :: Maybe Int -> ReadP Code
+codeParser n = do
+    (n', indType) <- option (0, Spaces) getIndentSizeAndType
     action <- actionParser 
     codeEnd
-    otherActions <- sepBy (codeStart n' indType >> actionParser) (codeEnd)
-    return $ action:otherActions
-    where
-        codeStart :: Maybe Int -> IndentType -> ReadP (Int, IndentType)
-        codeStart (Just n') indType = indentN n' indType >> return ()
-        codeStart (Nothing) _ = getIndentSizeAndType
-        codeEnd = (skipCommentsAndSpaces) <++ (endOfLine >> skipCommentsAndSpaces) 
+    otherActions <- sepBy (indentN n' indType >> actionParser) (codeEnd)
+    return $ Code (action:otherActions)
 
 --codeParser :: Int -> ReadP Code
 --codeParser n = fmap Code $ sepBy1 (actionParser n) (endOfLine n >> skipSpaces)
 
-actionParser :: Int -> ReadP Action
-actionParser n =
-    (fmap Assign assigmentParser) <|> (fmap Call callParser) <|> (fmap Definition $ functionParser n)
+actionParser :: ReadP Action
+actionParser =
+    (fmap Assign assigmentParser) <|> (fmap Call callParser) <|> (fmap Definition $ functionParser)
 
 assigmentParser :: ReadP Assignment
 assigmentParser = do
@@ -179,8 +178,8 @@ callParser = do
         char '.'
         return $ Just name
 
-functionParser :: Int -> ReadP Function
-functionParser n = do
+functionParser :: ReadP Function
+functionParser = do
     string "def"
     skipSpaces
     functionName <- nameParser
@@ -189,6 +188,6 @@ functionParser n = do
     arguments <- sepBy stringParser (skipSpaces >> char ',' >> skipSpaces)
     char ')'
     char ':'
-    endOfLine $ n + 1
-    code <- codeParser $ n + 1
+    codeEnd
+    code <- codeParser Nothing
     return $ Function functionName arguments code

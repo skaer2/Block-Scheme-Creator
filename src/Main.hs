@@ -9,4 +9,4 @@ main :: IO ()
 main = do
   contents <- getContents
   print contents
-  print $ showResult $ readP_to_S (codeParser 0 >>= (\cod -> char '\n' >> return cod)) contents
+  print $ showResult $ readP_to_S (codeParser Nothing) contents
