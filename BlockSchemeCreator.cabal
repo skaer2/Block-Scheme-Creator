@@ -18,3 +18,7 @@ executable BlockSchemeCreator
   main-is:             Main.hs
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
+  other-modules:       PythonParser
+                     , HelperFunctions
+                     , ASTTypes
+                     , IndentParsing

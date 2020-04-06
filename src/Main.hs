@@ -1,6 +1,8 @@
 module Main where
 
 import PythonParser
+import HelperFunctions
+
 import           Control.Applicative ((<|>))
 import           Text.ParserCombinators.ReadP
 import           Data.Char
