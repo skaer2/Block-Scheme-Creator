@@ -40,7 +40,7 @@ type Name = String
 
 type Expr = String
 
-data IndentType 
+data IndentType
     = Spaces
     | Tabs
     deriving (Show, Eq)
@@ -59,6 +59,8 @@ data Function =
     Function FunctionName [Argument] Code
     deriving (Show, Eq)
 
+void a = a >> return ()
+
 showResult :: [(a, String)] -> Maybe a
 showResult r =
     case showResults r of
@@ -73,6 +75,9 @@ showResults =
                  then True
                  else False)
 
+showShortOutput :: [(a, String)] -> [(a, String)]
+showShortOutput = map (\(x, leftovers) -> (x, take 10 leftovers))
+
 letter :: ReadP Char
 letter = satisfy isAlpha
 
@@ -85,75 +90,95 @@ number = fmap (read) $ many1 digit
 isEndOfLine :: Char -> Bool
 isEndOfLine = (==) '\n'
 
-stringParser :: ReadP String
-stringParser = many1 $ satisfy $ not . isEndOfLine
+stringParser :: ReadP String 
+stringParser = munch1 $ not . isEndOfLine 
 
 nameParser :: ReadP String
 nameParser = do
     firstLetter <- letter
     everythingElse <- many $ satisfy isAlowed
     return $ firstLetter : everythingElse
- where
-     isAlowed = (||) <$> isAlphaNum <*> isUnderscore
-     isUnderscore = (==) '_'
+  where
+    isAlowed = (||) <$> isAlphaNum <*> isUnderscore
+    isUnderscore = (==) '_'
 
 skipComments :: ReadP ()
 skipComments = skipMany commentParser
 
 commentParser :: ReadP String
 commentParser = do
-    char '#' 
-    commentContent <- option [] stringParser 
-    ((char '\n' ) >> return ()) <|> eof
+    char '#'
+    commentContent <- option [] stringParser
+    endOfLine <|> eof
     return commentContent
 
 spacesParser :: ReadP String
 spacesParser = munch1 isSpace
 
 skipCommentsAndSpaces :: ReadP ()
-skipCommentsAndSpaces = skipMany (spacesParser <|> commentParser)
+skipCommentsAndSpaces = skipMany1 (endOfLine <|> skipComments)
 
 endOfLine :: ReadP () -- TODO \ \n
-endOfLine = (satisfy isEndOfLine >> return ()) <|> eof
+endOfLine = void $ satisfy isEndOfLine
 
-indentTabs :: ReadP ([Char], IndentType)
-indentTabs = do
-    chars <- many1 (char '\t') 
-    return (chars, Tabs)
-
-indentSpaces :: ReadP ([Char], IndentType)
-indentSpaces = do
-    chars <- many1 (char ' ') 
-    return (chars, Spaces)
-
-getIndentSizeAndType :: ReadP (Int, IndentType)
-getIndentSizeAndType = do
-    (chars, indType) <- (indentTabs <|> indentSpaces)
-    return (length chars, indType)
-
-indentN :: Int -> IndentType -> ReadP [Char] 
+indentN :: Int -> IndentType -> ReadP [Char]
 indentN n = count n . char . indentChar
-    where
-        indentChar Spaces = ' '
-        indentChar Tabs = '\t'
+
+indentChar Spaces = ' '
+indentChar Tabs   = '\t'
+
+lookTypeIndent :: IndentType -> ReadP (Int, IndentType)
+lookTypeIndent t = do
+    s <- look
+    return (indent s, t)
+  where
+    indent (c:s)
+        | (c == indentChar t) = 1 + indent s
+    indent _ = 0
+
+lookSpaceIndent :: ReadP (Int, IndentType)
+lookSpaceIndent = lookTypeIndent Spaces
+
+lookTabIndent :: ReadP (Int, IndentType)
+lookTabIndent = lookTypeIndent Tabs
+
+lookIndent :: ReadP (Int, IndentType)
+lookIndent = do
+    spaceInd@(nSpaces, _) <- lookSpaceIndent
+    if nSpaces == 0
+        then do
+            tabInd <- lookTabIndent
+            return tabInd
+        else return spaceInd
 
 codeEnd :: ReadP ()
-codeEnd = skipCommentsAndSpaces <|> eof 
+codeEnd = (endOfLine <|> (void commentParser)) >> skipLines
+  where
+    skipLines = skipMany emptyLine
+    emptyLine = do
+        munch (\x -> elem x " \t")
+        endOfLine <|> (void commentParser)
 
-codeParser :: Maybe Int -> ReadP Code
-codeParser n = do
-    (n', indType) <- option (0, Spaces) getIndentSizeAndType
-    action <- actionParser 
-    codeEnd
-    otherActions <- sepBy (indentN n' indType >> actionParser) (codeEnd)
-    return $ Code (action:otherActions)
+codeBlock oldN = do
+    (n, t) <- begin oldN
+    actions <- sepBy1 (indentN n t >> actionParser n) (codeEnd)
+    optional codeEnd
+    return $ Code actions
+  where
+    begin oldN = do
+        ind@(newN, _) <- lookIndent
+        if newN <= oldN
+            then pfail
+            else return ind
 
---codeParser :: Int -> ReadP Code
---codeParser n = fmap Code $ sepBy1 (actionParser n) (endOfLine n >> skipSpaces)
+actionParser :: Int -> ReadP Action
+actionParser n = simpleActParser <|> (compoundActParser n)
 
-actionParser :: ReadP Action
-actionParser =
-    (fmap Assign assigmentParser) <|> (fmap Call callParser) <|> (fmap Definition $ functionParser)
+simpleActParser :: ReadP Action
+simpleActParser = (fmap Assign assigmentParser) <|> (fmap Call callParser)
+
+compoundActParser :: Int -> ReadP Action
+compoundActParser n = (fmap Definition $ functionParser n)
 
 assigmentParser :: ReadP Assignment
 assigmentParser = do
@@ -164,30 +189,38 @@ assigmentParser = do
     expr <- stringParser
     return $ Assignment name expr
 
+argsParser :: ReadP [Argument]
+argsParser = sepBy nameParser argsSeparator
+
+argsSeparator :: ReadP ()
+argsSeparator = skipSpaces >> char ',' >> skipSpaces
+
 callParser :: ReadP CallF
 callParser = do
     sourceName <- option Nothing source
     functionName <- nameParser
     char '('
-    arguments <- sepBy stringParser (skipSpaces >> char ',' >> skipSpaces)
+    arguments <- sepBy callArgP argsSeparator
     char ')'
     return $ CallF sourceName functionName arguments
   where
+    callArgP = munch1 $ not . (flip elem) "\n(),"
     source = do
         name <- nameParser
         char '.'
         return $ Just name
 
-functionParser :: ReadP Function
-functionParser = do
+functionParser :: Int -> ReadP Function
+functionParser n = do
     string "def"
     skipSpaces
     functionName <- nameParser
     skipSpaces
     char '('
-    arguments <- sepBy stringParser (skipSpaces >> char ',' >> skipSpaces)
+    arguments <- argsParser
     char ')'
     char ':'
     codeEnd
-    code <- codeParser Nothing
+    code <- codeBlock n
+    codeEnd
     return $ Function functionName arguments code
