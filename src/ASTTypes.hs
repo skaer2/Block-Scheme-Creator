@@ -14,6 +14,8 @@ data Action
     | Call CallF
     | Def Function
     | IfBlock If
+    | LoopW While
+    | LoopF For
     deriving (Show, Eq)
 
 type Condition = String
@@ -21,6 +23,14 @@ data If = If Condition Code (Maybe Else)
     deriving (Show, Eq)
 
 data Else = Else Code
+    deriving (Show, Eq)
+
+data While = While Condition Code
+    deriving (Show, Eq)
+
+type Variable = String
+
+data For = For Variable Condition Code
     deriving (Show, Eq)
 
 data Assignment =

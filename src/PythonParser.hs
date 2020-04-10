@@ -4,9 +4,9 @@ import           Control.Applicative          ((<|>))
 import           Data.Char
 import           Text.ParserCombinators.ReadP
 
-import IndentParsing 
-import ASTTypes
-import HelperFunctions
+import           ASTTypes
+import           HelperFunctions
+import           IndentParsing
 
 -- Code = List Actions
 --
@@ -25,7 +25,6 @@ import HelperFunctions
 -- BlockBegin = IndentIn
 -- BlockEnd   = IndentOut
 --
-
 importParser :: ReadP ()
 importParser = do
     string "import"
@@ -75,7 +74,11 @@ simpleActParser :: ReadP Action
 simpleActParser = (fmap Assign assigmentParser) <|> (fmap Call callParser)
 
 compoundActParser :: Indent -> ReadP Action
-compoundActParser ind@(n, _) = (fmap Def $ functionParser n) <|> (fmap IfBlock $ ifParser ind) 
+compoundActParser ind@(n, _) =
+    (fmap Def $ functionParser n) 
+    <|> (fmap IfBlock $ ifParser ind) 
+    <|> (fmap LoopW $ whileParser n) 
+    <|> (fmap LoopF $ forParser n)
 
 assigmentParser :: ReadP Assignment
 assigmentParser = do
@@ -119,18 +122,16 @@ functionParser n = do
     char ':'
     codeEnd
     code <- codeBlock n
-    codeEnd
     return $ Function functionName arguments code
 
-conditionParser :: ReadP Condition 
+conditionParser :: ReadP Condition
 conditionParser = munch1 $ not . (flip elem) ":"
 
 elseParser :: Int -> ReadP (Maybe Else)
 elseParser n = do
     string "else:"
     codeEnd
-    code <- codeBlock n 
-    codeEnd
+    code <- codeBlock n
     return $ Just $ Else code
 
 elifParser :: Indent -> ReadP (Maybe Else)
@@ -144,11 +145,37 @@ ifParser ind@(n, _) = do
     string "if"
     skipSpaces
     condition <- conditionParser
+    skipSpaces
     char ':'
     codeEnd
-    code <- codeBlock n 
+    code <- codeBlock n
     codeEnd
     indentN ind
     elseCode <- option Nothing (elseParser n <|> elifParser ind)
     return $ If condition code elseCode
 
+whileParser :: Int -> ReadP While
+whileParser n = do
+    string "while"
+    skipSpaces
+    condition <- conditionParser
+    skipSpaces
+    char ':'
+    codeEnd
+    code <- codeBlock n
+    return $ While condition code
+
+forParser :: Int -> ReadP For
+forParser n = do
+    string "for"
+    skipSpaces
+    variable <- nameParser
+    skipSpaces
+    string "in"
+    skipSpaces
+    condition <- conditionParser
+    skipSpaces
+    char ':'
+    codeEnd
+    code <- codeBlock n
+    return $ For variable condition code
