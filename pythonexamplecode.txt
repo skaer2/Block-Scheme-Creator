@@ -5,8 +5,18 @@ round3 = int(raw_input(Enter score for round 3: ))
 def raw_input(her):
 	gavno()#her
 
+if guess < n:
+        print(guess)
+        guess = int(raw_input())
+elif guess > n:
+        print(high)
+        guess = int(raw_input())
+else:
+        print(you)
+        break()
+
 #Calculate the average
 average = (round1 + round2 + round3) / 3
 
 #Print out the test score
-print("   the her", average)
+print(her, average)

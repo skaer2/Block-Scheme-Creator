@@ -26,6 +26,11 @@ import HelperFunctions
 -- BlockEnd   = IndentOut
 --
 
+importParser :: ReadP ()
+importParser = do
+    string "import"
+    void stringParser
+
 nameParser :: ReadP String
 nameParser = do
     firstLetter <- letter
@@ -52,8 +57,8 @@ codeEnd = (endOfLine <|> (void commentParser)) >> skipLines
 
 codeBlock :: Int -> ReadP Code
 codeBlock oldN = do
-    (n, t) <- begin oldN
-    actions <- sepBy1 (indentN n t >> actionParser n) (codeEnd)
+    ind <- begin oldN
+    actions <- sepBy1 (indentN ind >> actionParser ind) (codeEnd)
     optional codeEnd
     return $ Code actions
   where
@@ -63,14 +68,14 @@ codeBlock oldN = do
             then pfail
             else return ind
 
-actionParser :: Int -> ReadP Action
-actionParser n = simpleActParser <|> (compoundActParser n)
+actionParser :: Indent -> ReadP Action
+actionParser ind = simpleActParser <|> (compoundActParser ind)
 
 simpleActParser :: ReadP Action
 simpleActParser = (fmap Assign assigmentParser) <|> (fmap Call callParser)
 
-compoundActParser :: Int -> ReadP Action
-compoundActParser n = (fmap Definition $ functionParser n)
+compoundActParser :: Indent -> ReadP Action
+compoundActParser ind@(n, _) = (fmap Def $ functionParser n) <|> (fmap IfBlock $ ifParser ind) 
 
 assigmentParser :: ReadP Assignment
 assigmentParser = do
@@ -116,3 +121,34 @@ functionParser n = do
     code <- codeBlock n
     codeEnd
     return $ Function functionName arguments code
+
+conditionParser :: ReadP Condition 
+conditionParser = munch1 $ not . (flip elem) ":"
+
+elseParser :: Int -> ReadP (Maybe Else)
+elseParser n = do
+    string "else:"
+    codeEnd
+    code <- codeBlock n 
+    codeEnd
+    return $ Just $ Else code
+
+elifParser :: Indent -> ReadP (Maybe Else)
+elifParser ind = do
+    string "el"
+    ifCode <- ifParser ind
+    return $ Just $ Else $ Code [IfBlock ifCode]
+
+ifParser :: Indent -> ReadP If
+ifParser ind@(n, _) = do
+    string "if"
+    skipSpaces
+    condition <- conditionParser
+    char ':'
+    codeEnd
+    code <- codeBlock n 
+    codeEnd
+    indentN ind
+    elseCode <- option Nothing (elseParser n <|> elifParser ind)
+    return $ If condition code elseCode
+

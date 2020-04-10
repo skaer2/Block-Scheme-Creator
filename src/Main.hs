@@ -1,6 +1,8 @@
 module Main where
 
 import PythonParser
+import IndentParsing 
+import ASTTypes
 import HelperFunctions
 
 import           Control.Applicative ((<|>))

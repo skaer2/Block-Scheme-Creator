@@ -12,10 +12,17 @@ type Expr = String
 data Action
     = Assign Assignment
     | Call CallF
-    | Definition Function
+    | Def Function
+    | IfBlock If
     deriving (Show, Eq)
 
---  | Use Keyword
+type Condition = String
+data If = If Condition Code (Maybe Else)
+    deriving (Show, Eq)
+
+data Else = Else Code
+    deriving (Show, Eq)
+
 data Assignment =
     Assignment Name Expr
     deriving (Show, Eq)
