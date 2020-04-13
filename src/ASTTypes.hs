@@ -1,9 +1,12 @@
 module ASTTypes where
 
+data Programm =
+    Programm Code
+    deriving (Show, Eq)
+
 data Code =
     Code [Action]
     deriving (Show, Eq)
-
 
 type Name = String
 
@@ -16,27 +19,39 @@ data Action
     | IfBlock If
     | LoopW While
     | LoopF For
+    | Flow FlowAct
+    deriving (Show, Eq)
+
+data FlowAct
+    = Break
+    | Continue
+    | Return String
+    | Yield String
     deriving (Show, Eq)
 
 type Condition = String
-data If = If Condition Code (Maybe Else)
+
+data If =
+    If Condition Code (Maybe Else)
     deriving (Show, Eq)
 
-data Else = Else Code
+data Else =
+    Else Code
     deriving (Show, Eq)
 
-data While = While Condition Code
+data While =
+    While Condition Code
     deriving (Show, Eq)
 
 type Variable = String
 
-data For = For Variable Condition Code
+data For =
+    For Variable Condition Code
     deriving (Show, Eq)
 
 data Assignment =
     Assignment Name Expr
     deriving (Show, Eq)
-
 
 type SourceName = String
 
@@ -51,5 +66,3 @@ data CallF =
 data Function =
     Function FunctionName [Argument] Code
     deriving (Show, Eq)
-
-

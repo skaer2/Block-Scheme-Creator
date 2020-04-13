@@ -25,10 +25,37 @@ import           IndentParsing
 -- BlockBegin = IndentIn
 -- BlockEnd   = IndentOut
 --
+parsePython :: String -> Either String Programm
+parsePython s =
+    case (result) of
+        Nothing -> Left "unexpected error"
+        Just x ->
+            case x of
+                (_, []) -> Right $ fst x
+                _       -> Left $ snd x
+  where
+    result = lastMaybe $ readP_to_S pythonParser s
+
+pythonParser :: ReadP Programm
+pythonParser = fmap Programm $ (skipMany importParser >> codeBlock (-1))
+
+flowActParser :: ReadP FlowAct
+flowActParser = breakParser <|> continueParser <|> returnParser <|> yieldParser 
+  where
+    breakParser = string "break" >> return Break
+    continueParser = string "continue" >> return Continue
+    returnParser = xParser "return" (Return)
+    yieldParser = xParser "yield" (Yield)
+    xParser x f = string x >> skipSpaces >> do 
+        s <- stringParser 
+        return $ f s
+    
+
 importParser :: ReadP ()
 importParser = do
     string "import"
     void stringParser
+    codeEnd
 
 nameParser :: ReadP String
 nameParser = do
@@ -68,17 +95,15 @@ codeBlock oldN = do
             else return ind
 
 actionParser :: Indent -> ReadP Action
-actionParser ind = simpleActParser <|> (compoundActParser ind)
+actionParser ind = (fmap Flow flowActParser) <|> simpleActParser <|> (compoundActParser ind)
 
 simpleActParser :: ReadP Action
 simpleActParser = (fmap Assign assigmentParser) <|> (fmap Call callParser)
 
 compoundActParser :: Indent -> ReadP Action
 compoundActParser ind@(n, _) =
-    (fmap Def $ functionParser n) 
-    <|> (fmap IfBlock $ ifParser ind) 
-    <|> (fmap LoopW $ whileParser n) 
-    <|> (fmap LoopF $ forParser n)
+    (fmap Def $ functionParser n) <|> (fmap IfBlock $ ifParser ind) <|> (fmap LoopW $ whileParser n) <|>
+    (fmap LoopF $ forParser n)
 
 assigmentParser :: ReadP Assignment
 assigmentParser = do

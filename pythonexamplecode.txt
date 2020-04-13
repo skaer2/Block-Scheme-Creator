@@ -1,3 +1,4 @@
+import her
 round1 = int(raw_input(Enter score for round 1: ))
 
 round3 = int(raw_input(Enter score for round 3: ))
@@ -13,7 +14,7 @@ while n != guess:
             guess = int(raw_input())
     else:
             print(you)
-            break()
+            break
 for x in fruits:
       print(x)
 

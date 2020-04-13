@@ -1,4 +1,4 @@
-module HelperFunctions where 
+module HelperFunctions where
 
 import           Data.Char
 import           Text.ParserCombinators.ReadP
@@ -23,6 +23,19 @@ showResults =
 showShortOutput :: [(a, String)] -> [(a, String)]
 showShortOutput = map (\(x, leftovers) -> (x, take 10 leftovers))
 
+lastMaybe :: [a] -> Maybe a
+lastMaybe xs =
+    if null xs
+        then Nothing
+        else Just (last xs)
+
+addLineBreaks :: String -> String
+addLineBreaks [] = []
+addLineBreaks (x:xs) =
+    if x == ','
+        then x : '\n' : (addLineBreaks xs)
+        else x : (addLineBreaks xs)
+
 
 
 letter :: ReadP Char
@@ -37,8 +50,8 @@ number = fmap (read) $ many1 digit
 isEndOfLine :: Char -> Bool
 isEndOfLine = (==) '\n'
 
-stringParser :: ReadP String 
-stringParser = munch1 $ not . isEndOfLine 
+stringParser :: ReadP String
+stringParser = munch1 $ not . isEndOfLine
 
 endOfLine :: ReadP () -- TODO \ \n
 endOfLine = void $ satisfy isEndOfLine
