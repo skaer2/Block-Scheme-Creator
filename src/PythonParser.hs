@@ -1,5 +1,14 @@
 module PythonParser where
 
+--TODO add assignment with modifiers: 
+--          data Modifier = ...
+--
+--          data Assignment = ... Modifier ...
+--
+--          ... modifierParser ...
+--          mod <- modifierParser
+--          return Assignment ... mod ... 
+
 import           Control.Applicative          ((<|>))
 import           Data.Char
 import           Text.ParserCombinators.ReadP
@@ -70,7 +79,7 @@ commentParser :: ReadP String
 commentParser = do
     char '#'
     commentContent <- option [] stringParser
-    endOfLine <|> eof
+    endOfLine 
     return commentContent
 
 codeEnd :: ReadP ()
@@ -174,9 +183,7 @@ ifParser ind@(n, _) = do
     char ':'
     codeEnd
     code <- codeBlock n
-    codeEnd
-    indentN ind
-    elseCode <- option Nothing (elseParser n <|> elifParser ind)
+    elseCode <- option Nothing (indentN ind >> (elseParser n <|> elifParser ind))
     return $ If condition code elseCode
 
 whileParser :: Int -> ReadP While
