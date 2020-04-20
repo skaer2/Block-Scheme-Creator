@@ -1,6 +1,7 @@
 module Main where
 
 import           ASTTypes
+import           FTests
 import           HelperFunctions
 import           IndentParsing
 import           PythonParser
@@ -11,7 +12,7 @@ import           Text.ParserCombinators.ReadP
 
 main :: IO ()
 main = do
-    contents <- getContents
+    contents <- readFile "pythonexamplecode.txt"
     putStrLn $ show contents
     putStrLn "\n\nResults:"
     putStrLn $ show $ showResults $ readP_to_S (codeBlock (-1)) contents
@@ -22,8 +23,12 @@ main = do
     putStrLn "\n\n"
     putStrLn "\n\n"
     putStrLn "parse Python:\n"
-    let result = parsePython contents 
+    let result = parsePython contents
     case result of
         Left s -> putStrLn "Error\nUnread string:\n" >> putStrLn s
-        Right p -> putStrLn $ addLineBreaks $ show p
-
+        Right p@(Programm (Code as)) -> do
+            putStrLn $ addLineBreaks $ show p
+            c <- getChar
+            if c == 'n'
+                then return ()
+                else f1 as
