@@ -7,10 +7,39 @@ import           Data.List
 import           HelperFunctions
 import           Text.ParserCombinators.ReadP
 
+getInnerActions :: Action -> (Maybe [Action], Maybe [Action])
+getInnerActions (Def (Function _ _ (Code ias))) = (Just ias, Nothing)
+getInnerActions (LoopW (While cond (Code ias))) = (Just ias, Nothing)
+getInnerActions (LoopF (For var cond (Code ias))) = (Just ias, Nothing)
+getInnerActions (IfBlock (If cond (Code ias) e)) =
+    case e of
+        Nothing                -> (Just ias, Nothing)
+        Just (Else (Code eas)) -> (Just ias, Just eas)
+getInnerActions _ = (Nothing, Nothing)
+
+mapInnerActions :: ([Action] -> [Action]) -> Action -> Action
+mapInnerActions f (Def (Function fn args (Code ias))) = Def (Function fn args (Code $ f ias))
+mapInnerActions f (LoopW (While cond (Code ias))) = LoopW (While cond (Code $ f ias))
+mapInnerActions f (LoopF (For var cond (Code ias))) = LoopF (For var cond (Code $ f ias))
+mapInnerActions f (IfBlock (If cond (Code ias) e)) =
+    case e of
+        Nothing                -> IfBlock (If cond (Code $ f ias) Nothing)
+        Just (Else (Code eas)) -> IfBlock (If cond (Code $ f ias) (Just (Else (Code $ f eas))))
+mapInnerActions _ a = a
+
+removeEmptyCodes :: [Action] -> [Action]
+removeEmptyCodes [] = []
+removeEmptyCodes (a:as) =
+    case (getInnerActions a) of
+        (Just [], _)   -> removeEmptyCodes as
+        (Nothing, _)   -> a : removeEmptyCodes as
+        (Just (xs), _) -> (mapInnerActions removeEmptyCodes a) : removeEmptyCodes as
+
 removeDefs :: [Action] -> ([Function], [Action])
 removeDefs [] = ([], [])
 removeDefs ((Def (Function fn args (Code ias))):as) =
-    ((Function fn args (Code $ snd newIas)) : (fst $ newIas) ++ (fst $ removeDefs as), snd $ removeDefs as)
+    ( (Function fn args (Code $ snd newIas)) : (fst $ newIas) ++ (fst $ removeDefs as)
+    , snd $ removeDefs as)
   where
     newIas = removeDefs ias
 removeDefs ((LoopW (While cond (Code ias))):as) =
@@ -39,3 +68,8 @@ removeDefs ((IfBlock (If cond (Code ias) e)):as) =
 removeDefs (a:as) = (fst $ removeDefs as, a : (snd $ removeDefs as))
 
 f1 acts = putStrLn $ addLineBreaks $ show $ removeDefs acts
+
+f2 acts = putStrLn $ addLineBreaks $ show $ (removeEmptyCodes left, removeEmptyCodes right)
+  where
+    left = map (Def) $ fst $ removeDefs acts
+    right = snd $ removeDefs acts

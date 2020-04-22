@@ -31,4 +31,9 @@ main = do
             c <- getChar
             if c == 'n'
                 then return ()
-                else f1 as
+                else putStrLn "\n\n" >> f1 as
+
+            c2 <- getChar
+            if c2 == 'n'
+                then return ()
+                else putStrLn "\n\n" >> f2 as
