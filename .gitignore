@@ -1,4 +1,5 @@
 pythonexamplecode.txt
+blocktest.txt
 dist
 dist-*
 cabal-dev

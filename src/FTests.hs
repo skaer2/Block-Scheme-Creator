@@ -69,6 +69,17 @@ removeDefs (a:as) = (fst $ removeDefs as, a : (snd $ removeDefs as))
 
 f1 acts = putStrLn $ addLineBreaks $ show $ removeDefs acts
 
+readyProgramm :: Programm -> [Programm]
+readyProgramm (Programm (Code acts)) = wrappedRight : wrappedLeft
+  where
+    wrappedLeft = map wrap (fst splitClean)
+    wrap as = Programm (Code [as])
+    wrappedRight = Programm (Code (snd splitClean))
+    splitClean :: ([Action], [Action])
+    splitClean = (removeEmptyCodes left, removeEmptyCodes right)
+    left = map (Def) $ fst $ removeDefs acts
+    right = snd $ removeDefs acts
+
 f2 acts = putStrLn $ addLineBreaks $ show $ (removeEmptyCodes left, removeEmptyCodes right)
   where
     left = map (Def) $ fst $ removeDefs acts

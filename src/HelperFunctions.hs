@@ -3,6 +3,9 @@ module HelperFunctions where
 import           Data.Char
 import           Text.ParserCombinators.ReadP
 
+dotOr :: (a -> Bool) -> (a -> Bool) -> a -> Bool 
+dotOr f1 f2 = (||) <$> f1 <*> f2
+
 void :: Monad m => m a -> m ()
 void a = a >> return ()
 

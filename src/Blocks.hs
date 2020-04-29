@@ -1,7 +1,7 @@
 module Blocks where
 
-import ASTTypes
-import Data.List
+import           ASTTypes
+import           Data.List
 
 type Comment = String
 
@@ -12,44 +12,76 @@ data Block
     | Procedure String Block
     | Decision String Block (Maybe Block) Block
     | LoopBlock String Block Block
-    | Continue
-    | End
+    | LoopEnd String Block
+    | Next
+    | End (Maybe String)
+    deriving (Show)
 
-removeDefs :: [Action] -> ([Function], [Action])
-removeDefs (a1@(Def f):as) = (a1:(fst ), snd next)
-removeDefs (a:as) = (fst next, a:(snd next))
+--actionToBlock (Def (Function fn args c)) names =
+    --Start (Just $ combineFnArgs fn args) $ codeToBlock c names
+
+defaultNames = map (\c -> c:[]) ['A'..'Z']
+
+isIOAction :: String -> Bool
+isIOAction s = s `elem` ioActions
     where
-        next = removeDefs as
+        ioActions = ["print", "input"]
+
+isExitAction :: String -> Bool
+isExitAction s = s `elem` exitActions
+    where
+        exitActions = ["exit"]
 
 programmToBlock :: Programm -> Block
-programmToBlock (Programm c) = Start $ codeToBlock c
+programmToBlock (Programm c) = Start Nothing $ codeToBlock c (End Nothing) defaultNames
 
-codeToBlock :: Code -> Block
-codeToBlock (Code c) = actionsToBlock c
+codeToBlock :: Code -> Block -> [String] -> Block
+codeToBlock (Code as) = actionsToBlock as
 
-actionsToBlock :: [Action] -> Block
-actionsToBlock [] = Continue
-actionsToBlock (a:as) = actionToBlock
+actionsToBlock :: [Action] -> Block -> [String] -> Block
+actionsToBlock [] lastB _     = lastB
+actionsToBlock (a:as) lastB names = actionToBlock a names $ actionsToBlock as lastB names
 
 combineSnFnArgs :: Maybe String -> String -> [String] -> String
-combineSnFnArgs Nothing = combineFnArgs 
-combineSnFnArgs (Just sn) = sn ++ '.':combineFnArgs 
+combineSnFnArgs Nothing fn args = combineFnArgs fn args
+combineSnFnArgs (Just sn) fn args = sn ++ '.' : (combineFnArgs fn args)
 
 combineFnArgs :: String -> [String] -> String
-combineFnArgs fn args = fn ++ '(':combArgs ++ ")"
-  where 
+combineFnArgs fn args = fn ++ ('(' : combArgs ++ ")")
+  where
     combArgs = (intercalate ", " args)
 
 combineNE :: String -> String -> String
-combineNE = (++)
+combineNE s1 s2 = s1 ++ " = " ++ s2 
 
-elseToBlock :: Maybe Else -> Maybe Block
-elseToBlock Nothing = Nothing
-elseToBlock (Just (Else c)) = codeToBlock c
+elseToBlock :: Maybe Else -> [String] -> Maybe Block
+elseToBlock Nothing _             = Nothing
+elseToBlock (Just (Else c)) names = Just (codeToBlock c Next names)
 
-actionToBlock :: Action -> Block -> Block
-actionToBlock (Assign (Assignment n e)) = AssignBlock $ combineNE n e
-actionToBlock (Call (CallF sn fn args)) = Procedure $ combineSnFnArgs sn fn args
---actionToBlock (Def (Function fn args c)) = Start (combineFnArgs fn args) $ codeToBlock c
-actionToBlock (IfBlock (If cond c e)) = Decision cond (codeToBlock c) $ elseToBlock e
-actionToBlock (LoopW (While cond c)) = LoopBlock cond codeToLoop
+codeToLoop :: Code -> String -> [String] -> Block
+codeToLoop c s = codeToBlock c (LoopEnd s Next)
+
+flowActToBlock :: FlowAct -> Block -> Block
+flowActToBlock Break _      = Next
+flowActToBlock Continue _   = Next
+flowActToBlock (Return s) _ = End (Just s)
+flowActToBlock (Yield s) _  = End (Just s)
+
+actionToBlock :: Action -> [String] -> Block -> Block
+actionToBlock (Assign (Assignment n e)) _ = AssignBlock $ combineNE n e
+actionToBlock (Call (CallF sn fn args)) _ =
+    if isIOAction fn
+        then IOBlock s
+        else if isExitAction fn
+                 then (\_ -> End Nothing)
+                 else Procedure s
+  where
+    s = combineSnFnArgs sn fn args
+actionToBlock (Def (Function fn args c)) names = AssignBlock $ "define function " ++ fn
+actionToBlock (IfBlock (If cond c e)) names =
+    Decision cond (codeToBlock c Next names) $ elseToBlock e names
+actionToBlock (LoopW (While cond c)) (name:names) =
+    LoopBlock (name ++ " While " ++ cond) (codeToLoop c name names)
+actionToBlock (LoopF (For var cond c)) (name:names) =
+    LoopBlock (name ++ " For " ++ var ++ " in " ++ cond) (codeToLoop c name names)
+actionToBlock (Flow flAct) _ = flowActToBlock flAct

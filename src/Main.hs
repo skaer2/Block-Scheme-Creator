@@ -1,6 +1,7 @@
 module Main where
 
 import           ASTTypes
+import           Blocks
 import           FTests
 import           HelperFunctions
 import           IndentParsing
@@ -27,13 +28,19 @@ main = do
     case result of
         Left s -> putStrLn "Error\nUnread string:\n" >> putStrLn s
         Right p@(Programm (Code as)) -> do
+            putStrLn "Right:"
             putStrLn $ addLineBreaks $ show p
             c <- getChar
             if c == 'n'
                 then return ()
-                else putStrLn "\n\n" >> f1 as
-
+                else putStrLn "\nf1:\n" >> f1 as
             c2 <- getChar
             if c2 == 'n'
                 then return ()
-                else putStrLn "\n\n" >> f2 as
+                else putStrLn "\nf2:\n" >> f2 as
+            c3 <- getChar
+            if c3 == 'n'
+                then return ()
+                else putStrLn "\nBlocks:\n" >> f3 p
+
+f3 p = putStrLn $ show $ map programmToBlock $ readyProgramm p
