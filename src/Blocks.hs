@@ -11,7 +11,7 @@ data Block
     | AssignBlock String Block -- Mod
     | Procedure String Block
     | Decision String Block (Maybe Block) Block
-    | LoopBlock String Block Block
+    | LoopBlock String Block 
     | LoopEnd String Block
     | Next
     | End (Maybe String)
@@ -58,8 +58,8 @@ elseToBlock :: Maybe Else -> [String] -> Maybe Block
 elseToBlock Nothing _             = Nothing
 elseToBlock (Just (Else c)) names = Just (codeToBlock c Next names)
 
-codeToLoop :: Code -> String -> [String] -> Block
-codeToLoop c s = codeToBlock c (LoopEnd s Next)
+codeToLoop :: Code -> String -> [String] -> Block -> Block
+codeToLoop c s names b = codeToBlock c (LoopEnd s b) names
 
 flowActToBlock :: FlowAct -> Block -> Block
 flowActToBlock Break _      = Next
@@ -81,7 +81,7 @@ actionToBlock (Def (Function fn args c)) names = AssignBlock $ "define function 
 actionToBlock (IfBlock (If cond c e)) names =
     Decision cond (codeToBlock c Next names) $ elseToBlock e names
 actionToBlock (LoopW (While cond c)) (name:names) =
-    LoopBlock (name ++ " While " ++ cond) (codeToLoop c name names)
+    LoopBlock (name ++ " While " ++ cond) . codeToLoop c name names
 actionToBlock (LoopF (For var cond c)) (name:names) =
-    LoopBlock (name ++ " For " ++ var ++ " in " ++ cond) (codeToLoop c name names)
+    LoopBlock (name ++ " For " ++ var ++ " in " ++ cond) . codeToLoop c name names
 actionToBlock (Flow flAct) _ = flowActToBlock flAct

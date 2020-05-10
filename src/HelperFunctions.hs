@@ -3,6 +3,10 @@ module HelperFunctions where
 import           Data.Char
 import           Text.ParserCombinators.ReadP
 
+interleave :: [a] -> [a] -> [a]
+interleave (e:es) (o:os) = e : o : interleave es os
+interleave _      _      = []
+
 dotOr :: (a -> Bool) -> (a -> Bool) -> a -> Bool 
 dotOr f1 f2 = (||) <$> f1 <*> f2
 

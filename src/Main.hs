@@ -7,12 +7,17 @@ import           HelperFunctions
 import           IndentParsing
 import           PythonParser
 
+import           DrawBlocks
+
 import           Control.Applicative          ((<|>))
 import           Data.Char
 import           Text.ParserCombinators.ReadP
 
 main :: IO ()
-main = do
+main = drawBlocks
+
+main' :: IO ()
+main' = do
     contents <- readFile "pythonexamplecode.txt"
     putStrLn $ show contents
     putStrLn "\n\nResults:"
