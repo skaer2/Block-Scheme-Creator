@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module DrawBlocks
     ( drawBlocks
     ) where
@@ -8,42 +10,108 @@ import           Diagrams.Backend.SVG.CmdLine
 import           Diagrams.Prelude
 import           Diagrams.Trail
 import           Diagrams.TwoD.Layout.Grid
+import           Diagrams.TwoD.Text
 import           HelperFunctions
 
 rend = renderSVG "her.svg" (mkWidth (200 :: Double))
 
 drawBlocks :: IO ()
-drawBlocks = mainWith connectedScheme
+drawBlocks = mainWith $ hergavno
+
+hergavno :: Diagram B
+hergavno =
+    vcatConnect
+        (map (\x -> x ss) [terminator, ioScheme, anyAction, branchBlock, callBlock, loopStart, loopEnd])
+        "1"
+
+textC :: (TypeableFloat n, Renderable (Text n) b) => String -> QDiagram b V2 n Any
+textC s = fontSize (local (3 / fromIntegral (length (s)))) $ text s
+
+terminator :: String -> Diagram B
+terminator s = roundedRect 3 1 0.5 <> textC s
+
+ioScheme :: String -> Diagram B
+ioScheme s = rect 3 1 # shearX 0.3 <> textC s
+
+anyAction :: String -> Diagram B
+anyAction s = rect 3 1 <> textC s
+
+branchBlock :: String -> Diagram B
+branchBlock s = square 2 # rotate (45 @@ deg) # scaleY 0.5 <> textC s
+
+callBlock :: String -> Diagram B
+callBlock s = rect 3 1 <> rect 3 1 # scaleX 0.9 <> textC s
+
+loopStart :: String -> Diagram B
+loopStart s = loopForm <> textC s
+
+loopForm :: Diagram B
+loopForm =
+    centerXY $
+    stroke $ closeLine $ lineFromVertices [0 ^& 0, 0 ^& 0.8, 0.2 ^& 1, 2.8 ^& 1, 3 ^& 0.8, 3 ^& 0]
+
+loopEnd :: String -> Diagram B
+loopEnd s = loopForm # reflectY <> textC s
 
 a = text "start" <> circle 1 # scaleY 0.5
 
-b = text "kakoi-nibud = chemu-nibud" <> rect 2 1
+ss = "kakoi-nibud = chemu-nibud"
+
+bb :: String -> Diagram B
+bb s = textC s <> rect 2 1
+
+b = textC ss <> rect 2 1
 
 c = square 2 # rotate (45 @@ deg) # scaleY 0.5
 
 d = rect 2 1
 
-comb :: Diagram B
-comb =
-    (comb'' <> intPoint <> intPoint2) # 
-    connectOutside' (with & arrowHead .~ lineHead) "top" "intPoint" #
-    connectOutside "intPoint" "bottom" #
-    connectOutside' (with & arrowHead .~ lineHead) "last" "intPoint2" #
-    connectOutside "intPoint2" "dot" 
+-- True for connecting above
+-- False for connecting belove
+connect90deg ::
+       (TypeableFloat n, Renderable (Path V2 n) b, IsName n1, IsName n2)
+    => Bool
+    -> n1
+    -> n2
+    -> QDiagram b V2 n Any
+    -> QDiagram b V2 n Any
+connect90deg b n1 n2 d =
+    (d <> intPoint) # connectOutside' (with & arrowHead .~ lineHead) n1 "intPoint" #
+    connectOutside "intPoint" n2
   where
-    comb'' = cat (r2 (0, -1)) [comb', strut (r2 (-1, -1)), circle 0.01 # named "dot"]
-    intPoint2 = position [(getIntersectionPoint "last" "dot" comb'', circle 0.001 # named "intPoint2")]
-    intPoint = position [(getIntersectionPoint "bottom" "top" comb', circle 0.001 # named "intPoint")]
-    comb' =
-        cat
-            (r2 (-1, -1))
-            [ c # named "top"
-            , strut (r2 (-1, -1))
-            , innerScheme # named "bottom"
+    intPoint =
+        position
+            [ ( if b
+                    then getIntersectionPoint n2 n1 d
+                    else getIntersectionPoint n1 n2 d
+              , circle 0.001 # named "intPoint")
             ]
-        --atPoints
-            --(trailVertices $ square 5 # rotate (45 @@ deg))
-            --[d, c # named "C", b # named "B", circle 0.01]
+
+connect90deg' ::
+       (TypeableFloat n, Renderable (Path V2 n) b, IsName n1, IsName n2)
+    => ArrowOpts n
+    -> Bool
+    -> n1
+    -> n2
+    -> QDiagram b V2 n Any
+    -> QDiagram b V2 n Any
+connect90deg' opts b n1 n2 d =
+    (d <> intPoint) # connectOutside' (opts & arrowHead .~ lineHead) n1 "intPoint" #
+    connectOutside' opts "intPoint" n2
+  where
+    intPoint =
+        position
+            [ ( if b
+                    then getIntersectionPoint n2 n1 d
+                    else getIntersectionPoint n1 n2 d
+              , circle 0.001 # applyStyle (_shaftStyle opts) # named "intPoint")
+            ]
+
+comb :: Diagram B
+comb = comb'' # connect90deg True "top" "bottom" # connect90deg False "LAST" "dot"
+  where
+    comb'' = cat (r2 (0, -1)) [comb', strut (r2 (0, -1)), circle 0.01 # named "dot"]
+    comb' = cat (r2 (-1, -1)) [c # named "top", strut (r2 (-1, -1)), innerScheme # named "bottom"]
 
 --diamond x = square x # rotate (45 @@ deg)
 scheme :: Diagram B
@@ -61,10 +129,16 @@ visPoints :: [P2 Double] -> Diagram B
 visPoints pts = atPoints pts (repeat (circle 0.05 # lw none # fc blue))
 
 zipName :: (IsName a) => [Diagram B] -> [a] -> [Diagram B]
-zipName = zipWith (flip named)
+zipName = go
+  where
+    go [] _          = []
+    go (x:[]) _      = named "LAST" x : []
+    go _ []          = []
+    go (x:xs) (y:ys) = named y x : go xs ys
 
 connectOutsideList :: IsName a => Int -> [a] -> Diagram B -> Diagram B
-connectOutsideList 0 _ d          = d
+connectOutsideList 1 _ d          = d
+connectOutsideList 2 (n1:_) d     = connectOutside n1 "LAST" $ d
 connectOutsideList _ [] d         = d
 connectOutsideList _ (_:[]) d     = d
 connectOutsideList n (n1:n2:ns) d = connectOutside n1 n2 $ connectOutsideList (n - 1) (n2 : ns) d
@@ -80,7 +154,12 @@ getPointX (P (V2 x _)) = x
 
 getPointY (P (V2 _ y)) = y
 
-getIntersectionPoint :: (Semigroup m, Floating a, Ord a, IsName nm) => nm -> nm -> QDiagram b V2 a m -> Point V2 a
+getIntersectionPoint ::
+       (Semigroup m, Floating a, Ord a, IsName n1, IsName n2)
+    => n1
+    -> n2
+    -> QDiagram b V2 a m
+    -> Point V2 a
 getIntersectionPoint nameX nameY d = P $ V2 (getPointX point1) (getPointY point2)
   where
     points = names d
@@ -92,7 +171,7 @@ getIntersectionPoint nameX nameY d = P $ V2 (getPointX point1) (getPointY point2
             Just (p:ps) -> p
 
 innerScheme :: Diagram B
-innerScheme = vcatConnect [d, d, b, d # named "last"] (2 :: Int)
+innerScheme = vcatConnect [d, d, b, d] (2 :: Int)
 
 connectedScheme :: Diagram B
 connectedScheme = vcatConnect [a, b, comb, d] (1 :: Int)
