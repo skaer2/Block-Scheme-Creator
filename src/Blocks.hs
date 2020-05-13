@@ -85,3 +85,7 @@ actionToBlock (LoopW (While cond c)) (name:names) =
 actionToBlock (LoopF (For var cond c)) (name:names) =
     LoopBlock (name ++ " For " ++ var ++ " in " ++ cond) . codeToLoop c name names
 actionToBlock (Flow flAct) _ = flowActToBlock flAct
+
+
+
+theblock = [Start Nothing (AssignBlock "round1 = int(raw_input(Enter score for round 1: ))" (AssignBlock "round3 = int(raw_input(Enter score for round 3: ))" (LoopBlock "A While n != guess" (Decision "guess < n" (IOBlock "print(guess)" (AssignBlock "guess = int(raw_input())" Next)) (Just (Decision "guess > n" (IOBlock "print(high)" (AssignBlock "guess = int(raw_input())" Next)) (Just (IOBlock "print(you)" Next)) Next)) (LoopEnd "A" (LoopBlock "A For x in fruits" (IOBlock "print(x)" (LoopEnd "A" (AssignBlock "average = (round1 + round2 + round3) / 3" (IOBlock "print(her, average)" (AssignBlock "a1 = e1" (AssignBlock "a2 = e2" (AssignBlock "a5 = e5" (End Nothing)))))))))))))),Start Nothing (AssignBlock "define function raw_input" (End Nothing)),Start Nothing (AssignBlock "define function a3" (End Nothing)),Start Nothing (AssignBlock "define function ia2" (End Nothing)),Start Nothing (AssignBlock "define function ia1" (End Nothing)),Start Nothing (AssignBlock "define function iia2" (End Nothing))]
