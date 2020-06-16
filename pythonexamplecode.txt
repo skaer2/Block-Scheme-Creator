@@ -1,10 +1,13 @@
-import her
+import norm
 round1 = int(raw_input(Enter score for round 1: ))
 
 round3 = int(raw_input(Enter score for round 3: ))
 
-def raw_input(her):
-	gavno()#her
+def raw_input(norm):
+   test()#norm
+   action3()
+   i = 5
+
 while n != guess:
     if guess < n:
             print(guess)
@@ -22,11 +25,11 @@ for x in fruits:
 average = (round1 + round2 + round3) / 3
 
 #Print out the test score
-print(her, average)
+print(norm, average)
 
 a1 = e1
 a2 = e2
-def a3():
+def a3(x, y):
   f1()
 while l4:
     def ia1():

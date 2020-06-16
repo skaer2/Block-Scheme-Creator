@@ -35,21 +35,29 @@ main' file = do
     case result of
         Left s -> putStrLn "Error\nUnread string:\n" >> putStrLn s >> return (mempty)
         Right p@(Programm (Code as)) -> do
-            --putStrLn "Right:"
-            --putStrLn $ addLineBreaks $ show p
-            --c <- getChar
-            --if c == 'n'
-                --then return (mempty)
-                --else putStrLn "\nf1:\n" >> f1 as
-            --c2 <- getChar
-            --if c2 == 'n'
-                --then return (mempty)
-                --else putStrLn "\nf2:\n" >> f2 as
-            --c3 <- getChar
-            --if c3 == 'n'
-                --then return (mempty)
-                --else putStrLn "\nBlocks:\n" >> f3 p
-            return $ blocksToDiagram $ map programmToBlock $ readyProgramm p --Vremeno
+            putStrLn "Right:"
+            putStrLn $ addLineBreaks $ show p
+            c <- getChar
+            if c == 'n'
+                then return (mempty)
+                else putStrLn "\nf1:\n" >> f1 as
+            c2 <- getChar
+            if c2 == 'n'
+                then return (mempty)
+                else putStrLn "\nf2:\n" >> f2 as
+            c3 <- getChar
+            if c3 == 'n'
+                then return (mempty)
+                else putStrLn "\nBlocks:\n" >> f3 p
+            return $ convertCodeToDiagram p --Vremeno
+
+convertCodeToDiagram :: Programm -> Diagram B
+convertCodeToDiagram p = blocksToDiagram blocks
+  where
+      blocks = programmToBlock left : (functionsToBlock right)
+      left = fst $ readyProgramm p 
+      right = snd $ readyProgramm p 
 
 
-f3 p = putStrLn $ show $ map programmToBlock $ readyProgramm p
+
+f3 p = putStrLn $ show $ readyProgramm p

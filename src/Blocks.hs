@@ -32,6 +32,9 @@ isExitAction s = s `elem` exitActions
     where
         exitActions = ["exit"]
 
+functionsToBlock :: [Action] -> [Block]
+functionsToBlock as = map (\a -> actionsToBlock [a] (End Nothing) defaultNames) as
+
 programmToBlock :: Programm -> Block
 programmToBlock (Programm c) = Start Nothing $ codeToBlock c (End Nothing) defaultNames
 
@@ -77,7 +80,7 @@ actionToBlock (Call (CallF sn fn args)) _ =
                  else Procedure s
   where
     s = combineSnFnArgs sn fn args
-actionToBlock (Def (Function fn args c)) names = AssignBlock $ "define function " ++ fn
+actionToBlock (Def (Function fn args c)) names = \_ -> Start (Just $ combineFnArgs fn args) (codeToBlock c (End Nothing) defaultNames)
 actionToBlock (IfBlock (If cond c e)) names =
     Decision cond (codeToBlock c Next names) $ elseToBlock e names
 actionToBlock (LoopW (While cond c)) (name:names) =
