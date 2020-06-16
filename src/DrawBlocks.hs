@@ -19,10 +19,43 @@ import           Diagrams.Trail
 import           Diagrams.TwoD.Layout.Grid
 import           Diagrams.TwoD.Text
 
-rend = renderSVG "her.svg" (mkWidth (200 :: Double))
+rend = renderSVG "her.svg" (mkWidth (500 :: Double))
+
+drawThreeBlocks :: IO ()
+drawThreeBlocks = do
+    renderSVG "her1.svg" (mkWidth (200 :: Double)) $ blocksToDiagram theblock1 # lwL width
+    renderSVG "her2.svg" (mkWidth (500 :: Double)) $ blocksToDiagram theblock2 # lwL width
+    renderSVG "her3.svg" (mkWidth (1000 :: Double)) $ blocksToDiagram theblock # lwL width
+    return ()
+  where
+    width = 0.05
 
 drawBlocks :: IO ()
-drawBlocks = mainWith $ blocksToDiagram theblock
+drawBlocks = drawThreeBlocks
+--drawBlocks = drawSHIT
+
+drawSHIT :: IO ()
+drawSHIT =
+    rend $ vcat [herLin1, herLin2, herLin3, herLin4, herLin5, herLin6, herLin7]
+  where
+    testText = 
+        [ "A"
+        , "her gavno"
+        , "her gavno gavno"
+        , "her gavno gavno gavno gavna 30"
+        , "her gavno gavno gavno gavna 30 next line here"
+        , "firs tavn gavn gavn gavn her30 seco ndvn gavn gavn gavn her30 thir ddvn gavn gavn gavn her30"
+        ]
+    herLin1 = hcat $ map terminator testText
+    herLin2 = hcat $ map ioScheme testText
+    herLin3 = hcat $ map anyAction testText
+    herLin4 = hcat $ map branchBlock testText
+    herLin5 = hcat $ map callBlock testText
+    herLin6 = hcat $ map loopStart testText
+    herLin7 = hcat $ map loopEnd testText
+
+drawOneBlock :: IO ()
+drawOneBlock = mainWith $ blocksToDiagram theblock # lwL 0.01
 
 branchYes b = cat unit_X [b, textLeft]
 
@@ -43,7 +76,7 @@ textBottom = alignTL $ text "No" # fontSize (local 0.5) <> pha
     emptyTrace = getTrace $ (strutY 1 :: Diagram B)
 
 textLeft :: Diagram B
-textLeft = alignBR $ text "yes" # fontSize (local 0.5) <> pha
+textLeft = alignBR $ text "Yes" # fontSize (local 0.5) <> pha
   where
     pha = setTrace emptyTrace $ phantom (rect 1.5 0.7 :: Diagram B)
     emptyTrace = getTrace $ (strutX 1 :: Diagram B)
@@ -77,7 +110,7 @@ hergavno =
         "M"
 
 blocksToDiagram :: [Block] -> Diagram B
-blocksToDiagram bs = hcat $ intersperse (strutX 10) ds
+blocksToDiagram bs = hcat $ intersperse (strutX 10) ds # lwL 0.05
   where
     ds = map (\x -> blockToDiagram x 1 "M") bs
 
@@ -115,7 +148,7 @@ combWithElse level top left right =
     connect90deg False (level, "rightBottom") (level, "dot")
   where
     comb'' = cat (r2 (0, -1)) [comb', strut (r2 (0, -1)), circle 0.01 # named (level, "dot")]
-    leftAndRight = 
+    leftAndRight =
         centerX $
         cat
             (unitX)
@@ -150,26 +183,64 @@ comment s d =
     commentPart =
         centerXY $ stroke $ lineFromVertices [0.2 ^& 0, 0 ^& 0, 0 ^& 0.5, 0 ^& 1, 0.2 ^& 1]
 
-textC :: (TypeableFloat n, Renderable (Text n) b) => String -> QDiagram b V2 n Any
-textC s = fontSize (local (3 / fromIntegral (length (s)))) $ text s
+textC :: String -> (Double, Diagram B)
+textC s = (modifier, diagram)
+  where
+    modifier = fromIntegral (length ls) * 0.5
+    ls = lines $ lineWrap s
+    diagram = centerXY $ vcat $ map f ls
+    f s = txt s <> pha
+    pha = setTrace emptyTrace $ phantom (rect 3 0.5 :: Diagram B)
+    txt = fontSizeL (0.2) . text
+    emptyTrace = getTrace $ (strutY 1 :: Diagram B)
+
+textC' :: Int -> String -> (Double, Diagram B)
+textC' n s = (modifier, diagram)
+  where
+    modifier = fromIntegral (length ls) * 0.5
+    ls = lines $ lineWrap' n s
+    diagram = centerXY $ vcat $ map f ls
+    f s = txt s <> pha
+    pha = setTrace emptyTrace $ phantom (rect 3 0.5 :: Diagram B)
+    txt = fontSizeL (0.2) . text
+    emptyTrace = getTrace $ (strutY 1 :: Diagram B)
 
 terminator :: String -> Diagram B
-terminator s = roundedRect 3 1 0.5 <> textC s
+terminator s = roundedRect 3 m 0.5 <> d
+  where
+    d = snd $ textC s
+    m = max (fst $ textC s) 1
 
 ioScheme :: String -> Diagram B
-ioScheme s = rect 3 1 # shearX 0.3 <> textC s
+ioScheme s = rect 3 m # shearX 0.3 <> d
+  where
+    d = snd $ textC s
+    m = max (fst $ textC s) 1
 
 anyAction :: String -> Diagram B
-anyAction s = rect 3 1 <> textC s
+anyAction s = rect 3 m <> d
+  where
+    d = snd $ textC s
+    m = max (fst $ textC s) 1
 
 branchBlock :: String -> Diagram B
-branchBlock s = square 2 # rotate (45 @@ deg) # scaleY 0.5 <> textC s
+branchBlock s = square 1 # rotate (45 @@ deg) # scaleX mX # scaleY m <> d
+  where
+    d = snd $ textC' 15 s
+    mX = 2 + (m * 0.2)
+    m = max (fst $ textC' 15 s) 1
 
 callBlock :: String -> Diagram B
-callBlock s = rect 3 1 <> rect 3 1 # scaleX 0.9 <> textC s
+callBlock s = rect 3 m <> rect 3 m # scaleX 0.9 <> d
+  where
+    d = snd $ textC s
+    m = max (fst $ textC s) 1
 
 loopStart :: String -> Diagram B
-loopStart s = loopForm <> textC s
+loopStart s = loopForm # scaleY m <> d
+  where
+    d = snd $ textC s
+    m = max (fst $ textC s) 1
 
 loopForm :: Diagram B
 loopForm =
@@ -177,14 +248,17 @@ loopForm =
     stroke $ closeLine $ lineFromVertices [0 ^& 0, 0 ^& 0.8, 0.2 ^& 1, 2.8 ^& 1, 3 ^& 0.8, 3 ^& 0]
 
 loopEnd :: String -> Diagram B
-loopEnd s = loopForm # reflectY <> textC s
+loopEnd s = loopForm # reflectY # scaleY m <> d
+  where
+    d = snd $ textC s
+    m = max (fst $ textC s) 1
 
 --a = text "start" <> circle 1 # scaleY 0.5
 ss = "kakoi-nibud = chemu-nibud"
 
 --bb :: String -> Diagram B
 --bb s = textC s <> rect 2 1
-b = textC ss <> rect 2 1
+b = snd (textC ss) <> rect 2 1
 
 c = square 2 # rotate (45 @@ deg) # scaleY 0.5
 
@@ -277,7 +351,7 @@ connectOutsideL ::
     -> n2
     -> QDiagram b V2 n Any
     -> QDiagram b V2 n Any
-connectOutsideL = connectOutside' (with & headLength .~ (local 0.1))
+connectOutsideL = connectOutside' (with & headLength .~ (local 0.4))
 
 connectOutsideL' ::
        (TypeableFloat n, Renderable (Path V2 n) b, IsName n1, IsName n2)
@@ -286,7 +360,7 @@ connectOutsideL' ::
     -> n2
     -> QDiagram b V2 n Any
     -> QDiagram b V2 n Any
-connectOutsideL' opts = connectOutside' (opts & headLength .~ (local 0.1))
+connectOutsideL' opts = connectOutside' (opts & headLength .~ (local 0.4))
 
 getPointX (P (V2 x _)) = x
 
