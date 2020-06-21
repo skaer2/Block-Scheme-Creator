@@ -1,9 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module DrawBlocks
-    ( drawBlocks
-    , blocksToDiagram
-    , blockToDiagram
+    ( blocksToDiagram
     , Diagram
     , B
     ) where
@@ -20,42 +18,6 @@ import           Diagrams.TwoD.Layout.Grid
 import           Diagrams.TwoD.Text
 
 rend = renderSVG "her.svg" (mkWidth (500 :: Double))
-
-drawThreeBlocks :: IO ()
-drawThreeBlocks = do
-    renderSVG "her1.svg" (mkWidth (200 :: Double)) $ blocksToDiagram theblock1 # lwL width
-    renderSVG "her2.svg" (mkWidth (500 :: Double)) $ blocksToDiagram theblock2 # lwL width
-    renderSVG "her3.svg" (mkWidth (1000 :: Double)) $ blocksToDiagram theblock # lwL width
-    return ()
-  where
-    width = 0.05
-
-drawBlocks :: IO ()
-drawBlocks = drawThreeBlocks
---drawBlocks = drawSHIT
-
-drawSHIT :: IO ()
-drawSHIT =
-    rend $ vcat [herLin1, herLin2, herLin3, herLin4, herLin5, herLin6, herLin7]
-  where
-    testText = 
-        [ "A"
-        , "her gavno"
-        , "her gavno gavno"
-        , "her gavno gavno gavno gavna 30"
-        , "her gavno gavno gavno gavna 30 next line here"
-        , "firs tavn gavn gavn gavn her30 seco ndvn gavn gavn gavn her30 thir ddvn gavn gavn gavn her30"
-        ]
-    herLin1 = hcat $ map terminator testText
-    herLin2 = hcat $ map ioScheme testText
-    herLin3 = hcat $ map anyAction testText
-    herLin4 = hcat $ map branchBlock testText
-    herLin5 = hcat $ map callBlock testText
-    herLin6 = hcat $ map loopStart testText
-    herLin7 = hcat $ map loopEnd testText
-
-drawOneBlock :: IO ()
-drawOneBlock = mainWith $ blocksToDiagram theblock # lwL 0.01
 
 branchYes b = cat unit_X [b, textLeft]
 
@@ -80,34 +42,6 @@ textLeft = alignBR $ text "Yes" # fontSize (local 0.5) <> pha
   where
     pha = setTrace emptyTrace $ phantom (rect 1.5 0.7 :: Diagram B)
     emptyTrace = getTrace $ (strutX 1 :: Diagram B)
-
-polU level left = comb level (branchYesNo c) (left # named (level, "L"))
-
-pol1 = polU 1 sanina2
-
-saninaU level left =
-    combWithElse level (branchYesElse c) (left # named (level, "L")) (innerScheme level "R")
-
-sanina1 = saninaU 1 sanina2
-
-sanina2 = saninaU 2 sanina3
-
-sanina3 = saninaU 3 $ innerScheme 3 "R"
-
-hergavno :: Diagram B
-hergavno =
-    vcatConnect
-        (map (\x -> x ss)
-             [ comment ss . terminator
-             , ioScheme
-             , anyAction
-             , branchBlock
-             , callBlock
-             , loopStart
-             , loopEnd
-             ])
-        "1"
-        "M"
 
 blocksToDiagram :: [Block] -> Diagram B
 blocksToDiagram bs = hcat $ intersperse (strutX 10) ds # lwL 0.05
@@ -253,17 +187,6 @@ loopEnd s = loopForm # reflectY # scaleY m <> d
     d = snd $ textC s
     m = max (fst $ textC s) 1
 
---a = text "start" <> circle 1 # scaleY 0.5
-ss = "kakoi-nibud = chemu-nibud"
-
---bb :: String -> Diagram B
---bb s = textC s <> rect 2 1
-b = snd (textC ss) <> rect 2 1
-
-c = square 2 # rotate (45 @@ deg) # scaleY 0.5
-
-d = rect 2 1
-
 -- True for connecting above
 -- False for connecting belove
 connect90deg ::
@@ -307,9 +230,6 @@ connect90deg' opts b n1 n2 d =
             else getIntersectionPoint n1 n2 d
     intPoint' x = position [(x, circle 0.001 # applyStyle (_shaftStyle opts) # named "intPoint")]
 
---diamond x = square x # rotate (45 @@ deg)
---scheme :: Diagram B
---scheme = vcat (intersperse (strutY 1) [a, b, comb, a])
 defaultNames = map (\c -> c : []) ['A' .. 'Z']
 
 pointsNinetyDegreeAngleTrail :: [Point V2 Double]
@@ -384,19 +304,3 @@ getIntersectionPoint nameX nameY d =
         case lookup (toName nameY) points of
             Just (p:ps) -> (Just p)
             Nothing     -> Nothing
-
-innerScheme :: IsName a => Int -> a -> Diagram B
-innerScheme level nm = vcatConnect [d, d, b, d] level nm
---connectedScheme :: Diagram B
---connectedScheme = vcatConnect [a, b, comb, d] (1 :: Int) "M"
-    --visPoints $ interleave circlePoints diamondPoints
---circlePoints = trailVertices $ square 2
---diamondPoints = trailPoints $ circle 1
-    --cat (r2 (-1, -1)) [(c # named "C" # showEnvelope), strut (r2 (-1, -1)), (d # named "D")] #
-    --connectPerim' (with & arrowShaft .~ ninetyDegreeAngleTrail) "C" "D" (180 @@ deg) (90 @@ deg)
-  --where
-    --compTrail =
-    --getBorderPoint nm v = case lookupName nm connectedScheme of
-        --Just d -> envelopeP v d
-    --scheme # connectOutsideL"A" "B" # connectOutsideL"B" "C" #
-    --connectOutsideL"D" "E"

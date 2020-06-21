@@ -67,8 +67,6 @@ removeDefs ((IfBlock (If cond (Code ias) e)):as) =
     newIas = removeDefs ias
 removeDefs (a:as) = (fst $ removeDefs as, a : (snd $ removeDefs as))
 
-f1 acts = putStrLn $ addLineBreaks $ show $ removeDefs acts
-
 readyProgramm :: Programm -> (Programm, [Action])
 readyProgramm (Programm (Code acts)) = (wrappedLeft, wrappedRight)
   where
@@ -78,8 +76,3 @@ readyProgramm (Programm (Code acts)) = (wrappedLeft, wrappedRight)
     splitClean = (removeEmptyCodes left, removeEmptyCodes right)
     right = map (Def) $ fst $ removeDefs acts
     left = snd $ removeDefs acts
-
-f2 acts = putStrLn $ addLineBreaks $ show $ (removeEmptyCodes left, removeEmptyCodes right)
-  where
-    left = map (Def) $ fst $ removeDefs acts
-    right = snd $ removeDefs acts
