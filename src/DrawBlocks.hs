@@ -17,8 +17,6 @@ import           Diagrams.Trail
 import           Diagrams.TwoD.Layout.Grid
 import           Diagrams.TwoD.Text
 
-rend = renderSVG "her.svg" (mkWidth (500 :: Double))
-
 branchYes b = cat unit_X [b, textLeft]
 
 branchYesElse b = cat unitX [branchYes b, textRight]

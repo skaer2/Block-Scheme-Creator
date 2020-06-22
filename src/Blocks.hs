@@ -1,5 +1,5 @@
-module Blocks 
-    (Block(..)
+module Blocks
+    ( Block(..)
     , programmToBlock
     , functionsToBlock
     ) where
@@ -15,23 +15,23 @@ data Block
     | AssignBlock String Block -- Mod
     | Procedure String Block
     | Decision String Block (Maybe Block) Block
-    | LoopBlock String Block 
+    | LoopBlock String Block
     | LoopEnd String Block
     | Next
     | End (Maybe String)
     deriving (Show)
 
-defaultNames = map (\c -> c:[]) ['A'..'Z']
+defaultNames = map (\c -> c : []) ['A' .. 'Z']
 
 isIOAction :: String -> Bool
 isIOAction s = s `elem` ioActions
-    where
-        ioActions = ["print", "input"]
+  where
+    ioActions = ["print", "input"]
 
 isExitAction :: String -> Bool
 isExitAction s = s `elem` exitActions
-    where
-        exitActions = ["exit"]
+  where
+    exitActions = ["exit"]
 
 functionsToBlock :: [Action] -> [Block]
 functionsToBlock as = map (\a -> actionsToBlock [a] (End Nothing) defaultNames) as
@@ -43,11 +43,11 @@ codeToBlock :: Code -> Block -> [String] -> Block
 codeToBlock (Code as) = actionsToBlock as
 
 actionsToBlock :: [Action] -> Block -> [String] -> Block
-actionsToBlock [] lastB _     = lastB
+actionsToBlock [] lastB _         = lastB
 actionsToBlock (a:as) lastB names = actionToBlock a names $ actionsToBlock as lastB names
 
 combineSnFnArgs :: Maybe String -> String -> [String] -> String
-combineSnFnArgs Nothing fn args = combineFnArgs fn args
+combineSnFnArgs Nothing fn args   = combineFnArgs fn args
 combineSnFnArgs (Just sn) fn args = sn ++ '.' : (combineFnArgs fn args)
 
 combineFnArgs :: String -> [String] -> String
@@ -56,7 +56,7 @@ combineFnArgs fn args = fn ++ ('(' : combArgs ++ ")")
     combArgs = (intercalate ", " args)
 
 combineNE :: String -> String -> String
-combineNE s1 s2 = s1 ++ " = " ++ s2 
+combineNE s1 s2 = s1 ++ " = " ++ s2
 
 elseToBlock :: Maybe Else -> [String] -> Maybe Block
 elseToBlock Nothing _             = Nothing
@@ -81,7 +81,8 @@ actionToBlock (Call (CallF sn fn args)) _ =
                  else Procedure s
   where
     s = combineSnFnArgs sn fn args
-actionToBlock (Def (Function fn args c)) names = \_ -> Start (Just $ combineFnArgs fn args) (codeToBlock c (End Nothing) defaultNames)
+actionToBlock (Def (Function fn args c)) names =
+    \_ -> Start (Just $ combineFnArgs fn args) (codeToBlock c (End Nothing) defaultNames)
 actionToBlock (IfBlock (If cond c e)) names =
     Decision cond (codeToBlock c Next names) $ elseToBlock e names
 actionToBlock (LoopW (While cond c)) (name:names) =
